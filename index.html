@@ -3,7 +3,9 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lesio to piesio.</title>
+
     <style>
         body {
             background-color: orange;
@@ -12,21 +14,64 @@
             font-family: Arial, sans-serif;
         }
 
-      button {
-    font-size: 36px;
-    padding: 22px 35px;
-    margin: 15px;
-    cursor: pointer;
-    border-radius: 18px;
-    border: none;
-}
+        button {
+            font-size: 36px;
+            padding: 22px 35px;
+            margin: 15px;
+            cursor: pointer;
+            border-radius: 18px;
+            border: none;
+        }
 
         #status {
             font-size: 18px;
             color: navy;
         }
+
+        .guestbook {
+            max-width: 650px;
+            margin: 40px auto;
+            padding: 20px;
+            color: navy;
+        }
+
+        .guestbook input,
+        .guestbook textarea {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            font-size: 18px;
+            border-radius: 10px;
+            border: 2px solid navy;
+        }
+
+        .guestbook textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .guestbook-entry {
+            background: #fff1cc;
+            color: navy;
+            padding: 15px;
+            margin: 12px 0;
+            border-radius: 12px;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+
+        .guestbook-entry small {
+            color: #555;
+        }
+
+        #guestbookStatus {
+            color: navy;
+            font-size: 18px;
+        }
     </style>
 </head>
+
 <body>
     <br>
 
@@ -46,6 +91,43 @@
     <button id="dislike">👎 Nie lubię <span id="dislikes">0</span></button>
 
     <p id="status">Ładowanie głosów...</p>
+
+    <section class="guestbook">
+        <h2>📖 Księga gości Lesia</h2>
+
+        <p> zostaw wiadomość dla Lesia!</p>
+
+        <form id="guestbookForm">
+            <input
+                type="text"
+                id="nickname"
+                placeholder="Twój pseudonim"
+                minlength="2"
+                maxlength="20"
+                required
+            >
+
+            <textarea
+                id="message"
+                placeholder="Napisz coś miłego o Lesiu..."
+                minlength="3"
+                maxlength="300"
+                required
+            ></textarea>
+
+            <button type="submit" id="sendMessage">
+                Wyślij wiadomość 🐾
+            </button>
+        </form>
+
+        <p id="guestbookStatus"></p>
+
+        <h2>Wiadomości od odwiedzających</h2>
+
+        <div id="guestbookEntries">
+            Ładowanie wiadomości...
+        </div>
+    </section>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -114,7 +196,81 @@
             statusText.textContent = "Z tego urządzenia oddano już głos.";
         }
 
+        async function loadGuestbook() {
+            const entries = document.getElementById("guestbookEntries");
+
+            const { data, error } = await db
+                .from("guestbook")
+                .select("nickname, message, created_at")
+                .eq("approved", true)
+                .order("created_at", { ascending: false })
+                .limit(50);
+
+            if (error) {
+                entries.textContent = "Nie udało się pobrać wiadomości.";
+                console.error(error);
+                return;
+            }
+
+            entries.replaceChildren();
+
+            if (data.length === 0) {
+                entries.textContent = "Jeszcze nikt nie zostawił wiadomości. Bądź pierwszy!";
+                return;
+            }
+
+            data.forEach(entry => {
+                const box = document.createElement("div");
+                box.className = "guestbook-entry";
+
+                const name = document.createElement("strong");
+                name.textContent = entry.nickname;
+
+                const message = document.createElement("p");
+                message.textContent = entry.message;
+
+                const date = document.createElement("small");
+                date.textContent = new Date(entry.created_at).toLocaleString("pl-PL");
+
+                box.append(name, message, date);
+                entries.appendChild(box);
+            });
+        }
+
+        const guestbookForm = document.getElementById("guestbookForm");
+
+        guestbookForm.addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const nickname = document.getElementById("nickname").value.trim();
+            const message = document.getElementById("message").value.trim();
+            const guestbookStatus = document.getElementById("guestbookStatus");
+            const sendButton = document.getElementById("sendMessage");
+
+            sendButton.disabled = true;
+            guestbookStatus.textContent = "Wysyłanie wiadomości...";
+
+            const { error } = await db.rpc("submit_guestbook_entry", {
+                p_nickname: nickname,
+                p_message: message
+            });
+
+            sendButton.disabled = false;
+
+            if (error) {
+                guestbookStatus.textContent = "Nie udało się wysłać wiadomości. Spróbuj ponownie.";
+                console.error(error);
+                return;
+            }
+
+            guestbookForm.reset();
+            guestbookStatus.textContent =
+                "Dziękujemy! Wiadomość czeka na Twoją akceptację.";
+        });
+
         loadVotes();
+        loadGuestbook();
     </script>
 </body>
 </html>
+
