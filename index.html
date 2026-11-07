@@ -23,9 +23,20 @@
             border: none;
         }
 
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         #status {
             font-size: 18px;
             color: navy;
+        }
+
+        #voteNickname {
+            font-size: 24px;
+            padding: 10px;
+            border-radius: 10px;
         }
 
         .guestbook {
@@ -87,6 +98,23 @@
         Czy podoba Ci się ta strona?
     </h2>
 
+    <label for="voteNickname" style="font-size: 24px; color: navy;">
+        Podaj swój pseudonim:
+    </label>
+
+    <br><br>
+
+    <input
+        type="text"
+        id="voteNickname"
+        placeholder="Twój pseudonim"
+        maxlength="20"
+        minlength="2"
+        required
+    >
+
+    <br><br>
+
     <button id="like">👍 Lubię <span id="likes">0</span></button>
     <button id="dislike">👎 Nie lubię <span id="dislikes">0</span></button>
 
@@ -95,12 +123,12 @@
     <section class="guestbook">
         <h2>📖 Księga gości Lesia</h2>
 
-        <p> zostaw wiadomość dla Lesia!</p>
+        <p>Zostaw wiadomość dla Lesia!</p>
 
         <form id="guestbookForm">
             <input
                 type="text"
-                id="nickname"
+                id="guestbookNickname"
                 placeholder="Twój pseudonim"
                 minlength="2"
                 maxlength="20"
@@ -143,6 +171,7 @@
         const likeButton = document.getElementById("like");
         const dislikeButton = document.getElementById("dislike");
         const statusText = document.getElementById("status");
+        const voteNickname = document.getElementById("voteNickname");
 
         async function loadVotes() {
             const { data, error } = await db
@@ -162,39 +191,52 @@
         }
 
         async function vote(choice) {
-            if (localStorage.getItem("lesioVote")) {
-                statusText.textContent = "Z tego urządzenia oddano już głos.";
+            const nickname = voteNickname.value.trim();
+
+            if (nickname.length < 2 || nickname.length > 20) {
+                statusText.textContent =
+                    "Pseudonim musi mieć od 2 do 20 znaków.";
                 return;
             }
 
             likeButton.disabled = true;
             dislikeButton.disabled = true;
 
-            const { error } = await db.rpc("cast_vote", {
-                choice: choice
+            statusText.textContent = "Zapisywanie głosu...";
+
+            const { error } = await db.rpc("cast_vote_with_nickname", {
+                p_nickname: nickname,
+                p_choice: choice
             });
 
             if (error) {
-                statusText.textContent = "Nie udało się oddać głosu. Spróbuj ponownie.";
                 console.error(error);
+
+                if (
+                    error.code === "23505" ||
+                    error.message.includes("duplicate key")
+                ) {
+                    statusText.textContent =
+                        "Ten pseudonim oddał już głos w tej rundzie. Użyj innego.";
+                } else {
+                    statusText.textContent =
+                        "Nie udało się oddać głosu. Spróbuj ponownie.";
+                }
+
                 likeButton.disabled = false;
                 dislikeButton.disabled = false;
                 return;
             }
 
-            localStorage.setItem("lesioVote", choice);
-            statusText.textContent = "Dziękujemy za głos!";
+            statusText.textContent = "Dziękujemy za głos, " + nickname + "!";
             await loadVotes();
+
+            likeButton.disabled = false;
+            dislikeButton.disabled = false;
         }
 
         likeButton.addEventListener("click", () => vote("like"));
         dislikeButton.addEventListener("click", () => vote("dislike"));
-
-        if (localStorage.getItem("lesioVote")) {
-            likeButton.disabled = true;
-            dislikeButton.disabled = true;
-            statusText.textContent = "Z tego urządzenia oddano już głos.";
-        }
 
         async function loadGuestbook() {
             const entries = document.getElementById("guestbookEntries");
@@ -215,7 +257,8 @@
             entries.replaceChildren();
 
             if (data.length === 0) {
-                entries.textContent = "Jeszcze nikt nie zostawił wiadomości. Bądź pierwszy!";
+                entries.textContent =
+                    "Jeszcze nikt nie zostawił wiadomości. Bądź pierwszy!";
                 return;
             }
 
@@ -230,7 +273,8 @@
                 message.textContent = entry.message;
 
                 const date = document.createElement("small");
-                date.textContent = new Date(entry.created_at).toLocaleString("pl-PL");
+                date.textContent =
+                    new Date(entry.created_at).toLocaleString("pl-PL");
 
                 box.append(name, message, date);
                 entries.appendChild(box);
@@ -242,10 +286,17 @@
         guestbookForm.addEventListener("submit", async function(event) {
             event.preventDefault();
 
-            const nickname = document.getElementById("nickname").value.trim();
-            const message = document.getElementById("message").value.trim();
-            const guestbookStatus = document.getElementById("guestbookStatus");
-            const sendButton = document.getElementById("sendMessage");
+            const nickname =
+                document.getElementById("guestbookNickname").value.trim();
+
+            const message =
+                document.getElementById("message").value.trim();
+
+            const guestbookStatus =
+                document.getElementById("guestbookStatus");
+
+            const sendButton =
+                document.getElementById("sendMessage");
 
             sendButton.disabled = true;
             guestbookStatus.textContent = "Wysyłanie wiadomości...";
@@ -258,12 +309,14 @@
             sendButton.disabled = false;
 
             if (error) {
-                guestbookStatus.textContent = "Nie udało się wysłać wiadomości. Spróbuj ponownie.";
+                guestbookStatus.textContent =
+                    "Nie udało się wysłać wiadomości. Spróbuj ponownie.";
                 console.error(error);
                 return;
             }
 
             guestbookForm.reset();
+
             guestbookStatus.textContent =
                 "Dziękujemy! Wiadomość czeka na Twoją akceptację.";
         });
@@ -273,4 +326,3 @@
     </script>
 </body>
 </html>
-
