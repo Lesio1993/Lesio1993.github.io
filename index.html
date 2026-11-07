@@ -76,6 +76,36 @@
             color: #555;
         }
 
+        .reply-entry {
+            background: #ffe2a3;
+            color: navy;
+            padding: 12px;
+            margin: 10px 0 10px 20px;
+            border-radius: 10px;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+
+        .reply-button {
+            font-size: 17px;
+            padding: 10px 18px;
+            margin: 8px 0;
+        }
+
+        .reply-form {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .reply-form.visible {
+            display: block;
+        }
+
+        .reply-status {
+            font-size: 15px;
+            color: navy;
+        }
+
         #guestbookStatus {
             color: navy;
             font-size: 18px;
@@ -201,7 +231,6 @@
 
             likeButton.disabled = true;
             dislikeButton.disabled = true;
-
             statusText.textContent = "Zapisywanie głosu...";
 
             const { error } = await db.rpc("cast_vote_with_nickname", {
@@ -212,10 +241,7 @@
             if (error) {
                 console.error(error);
 
-                if (
-                    error.code === "23505" ||
-                    error.message.includes("duplicate key")
-                ) {
+                if (error.code === "23505") {
                     statusText.textContent =
                         "Ten pseudonim oddał już głos w tej rundzie. Użyj innego.";
                 } else {
@@ -243,8 +269,9 @@
 
             const { data, error } = await db
                 .from("guestbook")
-                .select("nickname, message, created_at")
+                .select("id, nickname, message, created_at")
                 .eq("approved", true)
+                .is("parent_id", null)
                 .order("created_at", { ascending: false })
                 .limit(50);
 
@@ -259,6 +286,22 @@
             if (data.length === 0) {
                 entries.textContent =
                     "Jeszcze nikt nie zostawił wiadomości. Bądź pierwszy!";
+                return;
+            }
+
+            const parentIds = data.map(entry => entry.id);
+
+            const { data: replies, error: replyError } = await db
+                .from("guestbook")
+                .select("id, parent_id, nickname, message, created_at")
+                .eq("approved", true)
+                .in("parent_id", parentIds)
+                .order("created_at", { ascending: true });
+
+            if (replyError) {
+                entries.textContent =
+                    "Nie udało się pobrać odpowiedzi.";
+                console.error(replyError);
                 return;
             }
 
@@ -277,6 +320,118 @@
                     new Date(entry.created_at).toLocaleString("pl-PL");
 
                 box.append(name, message, date);
+
+                const entryReplies = replies.filter(
+                    reply => reply.parent_id === entry.id
+                );
+
+                entryReplies.forEach(reply => {
+                    const replyBox = document.createElement("div");
+                    replyBox.className = "reply-entry";
+
+                    const replyName = document.createElement("strong");
+                    replyName.textContent = reply.nickname;
+
+                    const replyMessage = document.createElement("p");
+                    replyMessage.textContent = reply.message;
+
+                    const replyDate = document.createElement("small");
+                    replyDate.textContent =
+                        new Date(reply.created_at).toLocaleString("pl-PL");
+
+                    replyBox.append(
+                        replyName,
+                        replyMessage,
+                        replyDate
+                    );
+
+                    box.appendChild(replyBox);
+                });
+
+                const replyButton = document.createElement("button");
+                replyButton.type = "button";
+                replyButton.className = "reply-button";
+                replyButton.textContent = "Odpowiedz";
+
+                const replyForm = document.createElement("form");
+                replyForm.className = "reply-form";
+
+                const nicknameInput = document.createElement("input");
+                nicknameInput.type = "text";
+                nicknameInput.placeholder = "Twój pseudonim";
+                nicknameInput.minLength = 2;
+                nicknameInput.maxLength = 20;
+                nicknameInput.required = true;
+
+                const messageInput = document.createElement("textarea");
+                messageInput.placeholder = "Napisz odpowiedź...";
+                messageInput.minLength = 3;
+                messageInput.maxLength = 300;
+                messageInput.required = true;
+
+                const sendReply = document.createElement("button");
+                sendReply.type = "submit";
+                sendReply.textContent = "Wyślij odpowiedź 🐾";
+                sendReply.className = "reply-button";
+
+                const replyStatus = document.createElement("p");
+                replyStatus.className = "reply-status";
+
+                replyForm.append(
+                    nicknameInput,
+                    messageInput,
+                    sendReply,
+                    replyStatus
+                );
+
+                replyButton.addEventListener("click", () => {
+                    replyForm.classList.toggle("visible");
+                });
+
+                replyForm.addEventListener("submit", async event => {
+                    event.preventDefault();
+
+                    const nickname = nicknameInput.value.trim();
+                    const replyMessage = messageInput.value.trim();
+
+                    if (
+                        nickname.length < 2 ||
+                        nickname.length > 20 ||
+                        replyMessage.length < 3 ||
+                        replyMessage.length > 300
+                    ) {
+                        replyStatus.textContent =
+                            "Sprawdź długość pseudonimu i odpowiedzi.";
+                        return;
+                    }
+
+                    sendReply.disabled = true;
+                    replyStatus.textContent = "Wysyłanie odpowiedzi...";
+
+                    const { error } = await db.rpc(
+                        "submit_guestbook_reply",
+                        {
+                            p_parent_id: entry.id,
+                            p_nickname: nickname,
+                            p_message: replyMessage
+                        }
+                    );
+
+                    sendReply.disabled = false;
+
+                    if (error) {
+                        console.error(error);
+                        replyStatus.textContent =
+                            "Nie udało się wysłać odpowiedzi. Spróbuj ponownie.";
+                        return;
+                    }
+
+                    replyForm.reset();
+                    replyStatus.textContent =
+                        "Dziękujemy! Odpowiedź czeka na Twoją akceptację.";
+                });
+
+                box.append(replyButton, replyForm);
                 entries.appendChild(box);
             });
         }
@@ -326,3 +481,4 @@
     </script>
 </body>
 </html>
+
