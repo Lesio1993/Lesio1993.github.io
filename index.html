@@ -76,6 +76,16 @@
             color: #555;
         }
 
+        .thread-number {
+            display: inline-block;
+            background: navy;
+            color: white !important;
+            padding: 5px 9px;
+            border-radius: 7px;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
         .reply-entry {
             background: #ffe2a3;
             color: navy;
@@ -269,7 +279,7 @@
 
             const { data, error } = await db
                 .from("guestbook")
-                .select("id, nickname, message, created_at")
+                .select("id, nickname, message, created_at, thread_number")
                 .eq("approved", true)
                 .is("parent_id", null)
                 .order("created_at", { ascending: false })
@@ -293,7 +303,7 @@
 
             const { data: replies, error: replyError } = await db
                 .from("guestbook")
-                .select("id, parent_id, nickname, message, created_at")
+                .select("id, parent_id, nickname, message, created_at, thread_number")
                 .eq("approved", true)
                 .in("parent_id", parentIds)
                 .order("created_at", { ascending: true });
@@ -309,6 +319,10 @@
                 const box = document.createElement("div");
                 box.className = "guestbook-entry";
 
+                const number = document.createElement("span");
+                number.className = "thread-number";
+                number.textContent = "#" + entry.thread_number;
+
                 const name = document.createElement("strong");
                 name.textContent = entry.nickname;
 
@@ -319,15 +333,19 @@
                 date.textContent =
                     new Date(entry.created_at).toLocaleString("pl-PL");
 
-                box.append(name, message, date);
+                box.append(number, name, message, date);
 
                 const entryReplies = replies.filter(
-                    reply => reply.parent_id === entry.id
+                    reply => String(reply.parent_id) === String(entry.id)
                 );
 
                 entryReplies.forEach(reply => {
                     const replyBox = document.createElement("div");
                     replyBox.className = "reply-entry";
+
+                    const replyNumber = document.createElement("span");
+                    replyNumber.className = "thread-number";
+                    replyNumber.textContent = "#" + reply.thread_number;
 
                     const replyName = document.createElement("strong");
                     replyName.textContent = reply.nickname;
@@ -340,6 +358,7 @@
                         new Date(reply.created_at).toLocaleString("pl-PL");
 
                     replyBox.append(
+                        replyNumber,
                         replyName,
                         replyMessage,
                         replyDate
@@ -481,4 +500,3 @@
     </script>
 </body>
 </html>
-
