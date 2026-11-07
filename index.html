@@ -133,12 +133,18 @@
     <h1 style="font-size: 120px; color: navy;">
         LESIO TO PIESIO!!!
     </h1>
-<a href="https://www.tiktok.com/@lesiu719"
-   target="_blank"
-   rel="noopener noreferrer"
-   style="color: lightblue; font-size: 30px; font-weight: bold;">
-    🎵 TikTok Lesia – @lesiu719
-</a>
+
+    <a href="https://www.tiktok.com/@lesiu719"
+       target="_blank"
+       rel="noopener noreferrer"
+       style="color: lightblue; font-size: 30px; font-weight: bold;">
+        🎵 TikTok Lesia – @lesiu719
+    </a>
+
+    <p id="visitCounter" style="font-size: 22px; color: navy; font-weight: bold;">
+        Ładowanie licznika odwiedzin...
+    </p>
+
     <h2 style="font-size: 35px; color: navy;">
         Czy podoba Ci się ta strona?
     </h2>
@@ -218,6 +224,24 @@
         const statusText = document.getElementById("status");
         const voteNickname = document.getElementById("voteNickname");
 
+        // LICZNIK ODWIEDZIN
+        async function loadVisitCounter() {
+            const counter = document.getElementById("visitCounter");
+
+            const { data, error } = await db.rpc("register_site_visit");
+
+            if (error) {
+                counter.textContent =
+                    "Nie udało się pobrać licznika odwiedzin.";
+                console.error(error);
+                return;
+            }
+
+            counter.textContent =
+                "👀 Liczba odwiedzin strony: " + data;
+        }
+
+        // POBIERANIE GŁOSÓW
         async function loadVotes() {
             const { data, error } = await db
                 .from("votes")
@@ -235,6 +259,7 @@
             document.getElementById("dislikes").textContent = data.dislikes;
         }
 
+        // ODDAWANIE GŁOSU
         async function vote(choice) {
             const nickname = voteNickname.value.trim();
 
@@ -279,6 +304,7 @@
         likeButton.addEventListener("click", () => vote("like"));
         dislikeButton.addEventListener("click", () => vote("dislike"));
 
+        // KSIĘGA GOŚCI
         async function loadGuestbook() {
             const entries = document.getElementById("guestbookEntries");
 
@@ -460,6 +486,7 @@
             });
         }
 
+        // WYSYŁANIE NOWEJ WIADOMOŚCI
         const guestbookForm = document.getElementById("guestbookForm");
 
         guestbookForm.addEventListener("submit", async function(event) {
@@ -500,8 +527,10 @@
                 "Dziękujemy! Wiadomość czeka na Twoją akceptację.";
         });
 
+        // URUCHAMIANIE FUNKCJI
         loadVotes();
         loadGuestbook();
+        loadVisitCounter();
     </script>
 </body>
 </html>
