@@ -1,16 +1,120 @@
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <!DOCTYPE html>
+
+<!DOCTYPE html>
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
     <title>Lesio to piesio.</title>
+    <style>
+        body {
+            background-color: orange;
+            color: lightblue;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        button {
+            font-size: 25px;
+            padding: 12px 20px;
+            margin: 10px;
+            cursor: pointer;
+            border-radius: 12px;
+            border: none;
+        }
+
+        #status {
+            font-size: 18px;
+            color: navy;
+        }
+    </style>
 </head>
-<body style="background-color: orange; color: lightblue;">
+<body>
     <br>
-   <img src="DOWÓD na to ,że lesio to piesio.jpg"
-     alt="Dowód na to, że Lesio to piesio"
-     width="650">
+
+    <img src="DOWÓD na to ,że lesio to piesio.jpg"
+         alt="Dowód na to, że Lesio to piesio"
+         width="650">
+
     <h1 style="font-size: 120px; color: navy;">
-    LESIO TO PIESIO!!!
-</h1>
+        LESIO TO PIESIO!!!
+    </h1>
+
+    <h2 style="font-size: 35px; color: navy;">
+        Czy podoba Ci się ta strona?
+    </h2>
+
+    <button id="like">👍 Lubię <span id="likes">0</span></button>
+    <button id="dislike">👎 Nie lubię <span id="dislikes">0</span></button>
+
+    <p id="status">Ładowanie głosów...</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        const SUPABASE_URL = "https://smjxdyiuboylxeriquoy.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_xA2Y1bsITi1FuBbgHtgxCw_foc5_YPk";
+
+        const db = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_KEY
+        );
+
+        const likeButton = document.getElementById("like");
+        const dislikeButton = document.getElementById("dislike");
+        const statusText = document.getElementById("status");
+
+        async function loadVotes() {
+            const { data, error } = await db
+                .from("votes")
+                .select("likes, dislikes")
+                .eq("id", 1)
+                .single();
+
+            if (error) {
+                statusText.textContent = "Nie udało się pobrać głosów.";
+                console.error(error);
+                return;
+            }
+
+            document.getElementById("likes").textContent = data.likes;
+            document.getElementById("dislikes").textContent = data.dislikes;
+        }
+
+        async function vote(choice) {
+            if (localStorage.getItem("lesioVote")) {
+                statusText.textContent = "Z tego urządzenia oddano już głos.";
+                return;
+            }
+
+            likeButton.disabled = true;
+            dislikeButton.disabled = true;
+
+            const { error } = await db.rpc("cast_vote", {
+                choice: choice
+            });
+
+            if (error) {
+                statusText.textContent = "Nie udało się oddać głosu. Spróbuj ponownie.";
+                console.error(error);
+                likeButton.disabled = false;
+                dislikeButton.disabled = false;
+                return;
+            }
+
+            localStorage.setItem("lesioVote", choice);
+            statusText.textContent = "Dziękujemy za głos!";
+            await loadVotes();
+        }
+
+        likeButton.addEventListener("click", () => vote("like"));
+        dislikeButton.addEventListener("click", () => vote("dislike"));
+
+        if (localStorage.getItem("lesioVote")) {
+            likeButton.disabled = true;
+            dislikeButton.disabled = true;
+            statusText.textContent = "Z tego urządzenia oddano już głos.";
+        }
+
+        loadVotes();
+    </script>
 </body>
 </html>
