@@ -215,7 +215,35 @@
             Ładowanie wiadomości...
         </div>
     </section>
+<section class="guestbook">
+    <h2>💡 Masz pomysł na ulepszenie strony?</h2>
+    <p>Podziel się swoją propozycją! Chętnie ją przeczytam.</p>
 
+    <form id="suggestionForm">
+        <input
+            type="text"
+            id="suggestionNickname"
+            placeholder="Twój pseudonim"
+            minlength="2"
+            maxlength="20"
+            required
+        >
+
+        <textarea
+            id="suggestionText"
+            placeholder="Co można ulepszyć na stronie?"
+            minlength="3"
+            maxlength="500"
+            required
+        ></textarea>
+
+        <button type="submit" id="sendSuggestion">
+            Wyślij propozycję 💡
+        </button>
+    </form>
+
+    <p id="suggestionStatus"></p>
+</section>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
