@@ -513,7 +513,8 @@
                 document.getElementById("sendMessage");
 
             sendButton.disabled = true;
-            guestbookStatus.textContent = "Wysyłanie wiadomości...";
+           guestbookStatus.textContent =
+    "Dziękujemy za zostawienie opinii! Twój komentarz czeka na potwierdzenie (może to zająć do 8 godzin).";
 
             const { error } = await db.rpc("submit_guestbook_entry", {
                 p_nickname: nickname,
